@@ -3,7 +3,8 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as Haptics from "expo-haptics";
 import * as LocalAuthentication from "expo-local-authentication";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, { useContext, useState } from "react";
 import {
   Alert,
   ActivityIndicator,
@@ -17,16 +18,17 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-
+import { UserContext } from "./(tabs)/UserContext";
 
 const LoginScreen = () => {
+  // Consume the global context
+  const context = useContext(UserContext);
  
   // State variables for form inputs and error messages
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
- 
-  // State variables for error messages
+
+    // State variables for error messages
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
 
@@ -34,6 +36,9 @@ const LoginScreen = () => {
   const [biometricStatus, setBiometricStatus] = useState<"idle" | "success">(
     "idle",
   );
+
+
+
   const router = useRouter();
 
 
@@ -54,12 +59,19 @@ const handleSubmit = async () => {
         const data = response.data; // assuming the API returns a JSON object with a 'status' field
  
         if (data.status === "success") {
+
+          // Save the user data to AsyncStorage for persistence across app restarts
+          await AsyncStorage.setItem("user", JSON.stringify(data.user));
+
+          // Save the user data to global context for access across the app
+          context?.setUser(data.user);
+          
           // Successfully logged in
           router.replace("/home");
         } 
 
    } catch (error: any) { // handle errors from the API or network issues
-         const data = error.response.data; // extract response data from the error object
+         const data = error.response?.data; // Safely extract response data if it exists
       
       // validation error from Laravel
       if(data?.errors){ // check if there are validation errors in the response
@@ -111,6 +123,9 @@ const handleSubmit = async () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
       setBiometricStatus("success");
+
+      // NOTE: In a real app, you'd fetch the stored user here
+      // context?.setUser(storedUser); 
 
       setTimeout(() => {
         setBiometricStatus("idle");
@@ -246,6 +261,8 @@ const handleSubmit = async () => {
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
+
+
 };
 
 export default LoginScreen;

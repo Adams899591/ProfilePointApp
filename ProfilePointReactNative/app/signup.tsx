@@ -1,7 +1,8 @@
 import axios from "axios";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, { useContext, useState } from "react";
 import {
   Alert,
   ActivityIndicator,
@@ -15,8 +16,11 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { UserContext } from "./(tabs)/UserContext";
+// import { UserContext } from "../context/UserContext";
 
 const SignUpScreen = () => {
+  const context = useContext(UserContext);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -44,6 +48,16 @@ const SignUpScreen = () => {
         password: password,
         password_confirmation: confirmPassword,
       });
+
+      // Save the user data returned from the API to context
+      if (response.data.user) {
+
+        // Save the user data to AsyncStorage for persistence across app restarts
+        await AsyncStorage.setItem("user", JSON.stringify(response.data.user));
+
+        // Save the user data to global context for access across the app
+        context?.setUser(response.data.user);
+      }
 
       Alert.alert("Success", "Account created successfully!");
       router.replace("/home");

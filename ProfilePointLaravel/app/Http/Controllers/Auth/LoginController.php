@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 class LoginController extends Controller
 {
 
+    //  handles User Authenticate Login
     public function authenticateLogin(Request $request){
         try {
 

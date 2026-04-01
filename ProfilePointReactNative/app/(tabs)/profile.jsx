@@ -2,7 +2,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useContext, useState } from "react";
 import {
   Alert,
   Image,
@@ -13,14 +13,28 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { UserContext } from "../(tabs)/UserContext";
 
-const profile = () => {
+
+const profileScreen = () => {
 
   const router = useRouter();
 
+  const context = useContext(UserContext);
+  // Safely extract user. If the app reloads, user will be null
+  // until the login process is completed again.
+  const user =   context?.user;
+  console.log(user);
+    
+   
   const [profileImage, setProfileImage] = useState(
-    "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=150&auto=format&fit=crop",
+    // "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=150&auto=format&fit=crop",
+     `${user?.profile_image}`
   );
+  
+  
+  
+
 
   // pick Image
   const pickImage = async () => {
@@ -106,14 +120,14 @@ const profile = () => {
                 style={styles.profileImage}
               />
               <TouchableOpacity
-                style={styles.editBadge}
+                style={styles.editBadge} 
                 onPress={handleEditPhoto}
               >
                 <MaterialIcons name="edit" size={16} color="#fff" />
               </TouchableOpacity>
             </View>
-            <Text style={styles.userName}>Usman Adams</Text>
-            <Text style={styles.userEmail}>usman.adams@example.com</Text>
+            <Text style={styles.userName}>{user?.name}</Text>
+            <Text style={styles.userEmail}>{user?.email}</Text>
           </View>
         </LinearGradient>
 
@@ -211,7 +225,7 @@ const profile = () => {
   );
 };
 
-export default profile;
+export default profileScreen;
 
 const styles = StyleSheet.create({
   container: {

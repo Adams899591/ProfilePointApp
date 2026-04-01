@@ -1,7 +1,8 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+// import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import {
   Image,
   Modal,
@@ -12,15 +13,24 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { UserContext } from "../(tabs)/UserContext";
+
 
 const HomeScreen = () => {
   const router = useRouter();
   const [isAnalyticsVisible, setIsAnalyticsVisible] = useState(false);
+  const context = useContext(UserContext);
 
+  // Safely extract user. If the app reloads, user will be null
+  // until the login process is completed again.
+  const user = context?.user;
+  console.log(user);
+  
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
-
+           
+ 
 
         {/* Professional Header with Linear Gradient */}
         <LinearGradient
@@ -31,7 +41,9 @@ const HomeScreen = () => {
         >
           <View style={styles.headerContent}>
             <View>
-              <Text style={styles.greeting}>Hello, Usman!</Text>
+              <Text style={styles.greeting}>
+                 Hello, {user?.name ? user.name.split(" ")[0] : "Guest"}!    
+              </Text>
               <Text style={styles.subtitle}>Your dashboard is ready</Text>
             </View>
             <View style={styles.headerActions}>
@@ -46,7 +58,8 @@ const HomeScreen = () => {
               </TouchableOpacity>
               <Image
                 source={{
-                  uri: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=150&auto=format&fit=crop",
+                  // uri: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=150&auto=format&fit=crop",
+                  uri: user?.profile_image
                 }}
                 style={styles.profileImage}
               />
@@ -140,7 +153,7 @@ const HomeScreen = () => {
               </View>
               <Text style={styles.gridLabel}>Analytics</Text>
             </TouchableOpacity>
-
+           
             {/* settings */}
             <TouchableOpacity style={styles.gridItem}>
               <View
