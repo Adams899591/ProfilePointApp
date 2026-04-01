@@ -1,7 +1,10 @@
+import axios from "axios";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
+  Alert,
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -18,7 +21,40 @@ const SignUpScreen = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+
+  const handleSignUp = async () => {
+    // Basic Validation
+    if (!name || !email || !password || !confirmPassword) {
+      Alert.alert("Error", "Please fill in all fields.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      Alert.alert("Error", "Passwords do not match.");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await axios.post("http://10.39.154.166:8000/api/register", {
+        name: name,
+        email: email,
+        password: password,
+        password_confirmation: confirmPassword,
+      });
+
+      Alert.alert("Success", "Account created successfully!");
+      router.replace("/home");
+    } catch (error: any) {
+      console.error("Signup error:", error);
+      const message = error.response?.data?.message || "Something went wrong. Please try again.";
+      Alert.alert("Signup Failed", message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -109,11 +145,16 @@ const SignUpScreen = () => {
             </View>
 
             <TouchableOpacity
-              style={styles.signUpButton}
+              style={[styles.signUpButton, isLoading && { opacity: 0.7 }]}
               activeOpacity={0.8}
-              onPress={() => router.replace("/home")}
+              onPress={handleSignUp}
+              disabled={isLoading}
             >
-              <Text style={styles.signUpButtonText}>Sign Up</Text>
+              {isLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.signUpButtonText}>Sign Up</Text>
+              )}
             </TouchableOpacity>
 
             <View style={styles.dividerContainer}>

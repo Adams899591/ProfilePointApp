@@ -92,7 +92,7 @@ const profile = () => {
         >
           <View style={styles.profileHeader}>
             <TouchableOpacity
-              onPress={() => router.push("../Pages/notifications")}
+              onPress={() => router.push("../pages/notifications")}
               style={styles.topNotificationBtn}
             >
               <MaterialIcons name="notifications" size={28} color="#fff" />
@@ -140,7 +140,7 @@ const profile = () => {
           {/* Personal Information */}
           <TouchableOpacity
             style={styles.menuItem}
-            onPress={() => router.push("/Pages/personal-info")}
+            onPress={() => router.push("/pages/personal-info")}
           >
             <View style={[styles.iconBox, { backgroundColor: "#EEF2FF" }]}>
               <MaterialIcons name="person-outline" size={22} color="#4F46E5" />
@@ -152,7 +152,7 @@ const profile = () => {
           {/* Notifications */}
           <TouchableOpacity
             style={styles.menuItem}
-            onPress={() => router.push("../Pages/notifications")}
+            onPress={() => router.push("../pages/notifications")}
           >
             <View style={[styles.iconBox, { backgroundColor: "#F0FDF4" }]}>
               <MaterialIcons
@@ -168,7 +168,7 @@ const profile = () => {
           {/* Privacy & Security */}
           <TouchableOpacity
             style={styles.menuItem}
-            onPress={() => router.push("/Pages/privacy-security")}
+            onPress={() => router.push("/pages/privacy-security")}
           >
             <View style={[styles.iconBox, { backgroundColor: "#FFF7ED" }]}>
               <MaterialIcons name="security" size={22} color="#F59E0B" />

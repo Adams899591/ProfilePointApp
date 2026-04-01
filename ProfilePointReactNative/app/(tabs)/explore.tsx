@@ -36,7 +36,7 @@ const ExploreScreen = () => {
                 </Text>
               </View>
               <TouchableOpacity
-                onPress={() => router.push("../Pages/notifications")}
+                onPress={() => router.push("../pages/notifications")}
                 style={styles.notificationBtn}
               >
                 <MaterialIcons name="notifications" size={28} color="#fff" />

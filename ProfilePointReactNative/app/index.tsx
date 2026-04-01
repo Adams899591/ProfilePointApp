@@ -1,3 +1,4 @@
+import axios from "axios";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as Haptics from "expo-haptics";
 import * as LocalAuthentication from "expo-local-authentication";
@@ -5,6 +6,8 @@ import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   Alert,
+  ActivityIndicator,
+  Button,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -15,14 +18,70 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+
+
 const LoginScreen = () => {
+ 
+  // State variables for form inputs and error messages
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+ 
+  // State variables for error messages
+  const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+
+  const [isLoading, setIsLoading] = useState(false);
   const [biometricStatus, setBiometricStatus] = useState<"idle" | "success">(
     "idle",
   );
   const router = useRouter();
 
+
+
+  // handle Submit with validation error handling
+const handleSubmit = async () => {
+
+   setIsLoading(true); // set loading state to true when starting the login process
+
+   try {
+
+      // Send POST request to Laravel API for authentication
+     const response = await axios.post("http://10.39.154.166:8000/api/login", {
+       email: email.trim(),
+       password: password.trim(),
+     });
+
+        const data = response.data; // assuming the API returns a JSON object with a 'status' field
+ 
+        if (data.status === "success") {
+          // Successfully logged in
+          router.replace("/home");
+        } 
+
+   } catch (error: any) { // handle errors from the API or network issues
+         const data = error.response.data; // extract response data from the error object
+      
+      // validation error from Laravel
+      if(data?.errors){ // check if there are validation errors in the response
+
+        setEmailError(data.errors.email?. [0] || "");
+        setPasswordError(data.errors.password?. [0] || "");
+
+      } else {
+
+        // other errors (e.g. connection issues)
+        const message = data?.message || "Connection failed. Please check if the server is running.";
+        Alert.alert("Login Failed", message);
+      }
+
+
+   } finally { // reset loading state after the login process is complete, regardless of success or failure
+     setIsLoading(false);
+   }
+ };
+
+
+  // handle Biometric Auth 
   const handleBiometricAuth = async () => {
     const compatible = await LocalAuthentication.hasHardwareAsync();
     if (!compatible) {
@@ -60,13 +119,18 @@ const LoginScreen = () => {
     }
   };
 
+
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.flex}
       >
+       
         <View style={styles.innerContainer}>
+
+           {/* Welcome Back */}
           <View style={styles.header}>
             <Text style={styles.title}>Welcome Back</Text>
             <Text style={styles.subtitle}>
@@ -75,6 +139,8 @@ const LoginScreen = () => {
           </View>
 
           <View style={styles.form}>
+
+            {/* Email Address */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Email Address</Text>
               <TextInput
@@ -86,8 +152,15 @@ const LoginScreen = () => {
                 autoCapitalize="none"
                 autoCorrect={false}
               />
+
+              {/* emailError */}
+              {emailError ? (
+                  <Text style={{ color: "red", marginTop: 4 }}>{emailError}</Text>
+                ) : null}
+
             </View>
 
+             {/* Password */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Password</Text>
               <TextInput
@@ -97,17 +170,31 @@ const LoginScreen = () => {
                 onChangeText={setPassword}
                 secureTextEntry
               />
+
+              {/* passwordError */}
+              {passwordError ? (
+                <Text style={{ color: "red", marginTop: 4 }}>{passwordError}</Text>
+              ) : null}
             </View>
 
             <View style={styles.actionRow}>
+
+              {/* Login button */}
               <TouchableOpacity
-                style={styles.loginButton}
+              
+                style={[styles.loginButton, isLoading && { opacity: 0.7 }]}
                 activeOpacity={0.7}
-                onPress={() => router.replace("/home")}
+                onPress={handleSubmit}
+                disabled={isLoading}
               >
-                <Text style={styles.loginButtonText}>Login</Text>
+                {isLoading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.loginButtonText}>Login</Text>
+                )}
               </TouchableOpacity>
 
+              {/* Biometric Auth */}
               <TouchableOpacity
                 style={[
                   styles.biometricButton,
@@ -123,14 +210,17 @@ const LoginScreen = () => {
                   color={biometricStatus === "success" ? "#fff" : "#007AFF"}
                 />
               </TouchableOpacity>
-            </View>
 
+            </View>
+              
+              {/* OR */}
             <View style={styles.dividerContainer}>
               <View style={styles.divider} />
               <Text style={styles.dividerText}>or</Text>
               <View style={styles.divider} />
             </View>
 
+            {/* Continue with Google */}
             <TouchableOpacity
               style={styles.googleButton}
               activeOpacity={0.8}
@@ -142,14 +232,17 @@ const LoginScreen = () => {
               <Text style={styles.googleButtonText}>Continue with Google</Text>
             </TouchableOpacity>
 
+              {/* direct user to sign up page */}
             <View style={styles.footer}>
               <Text style={styles.footerText}>Don't have an account? </Text>
-              <TouchableOpacity onPress={() => router.push("/signup")}>
+              <TouchableOpacity onPress={() =>  router.push("/signup") }>
                 <Text style={styles.signUpText}>Sign Up</Text>
               </TouchableOpacity>
             </View>
+
           </View>
         </View>
+
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
