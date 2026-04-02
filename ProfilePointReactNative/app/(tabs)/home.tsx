@@ -24,7 +24,7 @@ const HomeScreen = () => {
   // Safely extract user. If the app reloads, user will be null
   // until the login process is completed again.
   const user = context?.user;
-  console.log(user);
+  console.log(JSON.stringify(user, null, 2));
   
   return (
     <SafeAreaView style={styles.container}>

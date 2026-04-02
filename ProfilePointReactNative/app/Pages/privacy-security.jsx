@@ -1,8 +1,14 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
+import * as Haptics from "expo-haptics";
+import * as LocalAuthentication from "expo-local-authentication";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useContext, useState } from "react";
 import {
+    Alert,
     KeyboardAvoidingView,
+    Modal,
     Platform,
     ScrollView,
     StyleSheet,
@@ -12,12 +18,102 @@ import {
     View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { UserContext } from "../(tabs)/UserContext";
 
 const PrivacySecurity = () => {
   const router = useRouter();
+  const context = useContext(UserContext);
+  const user = context?.user;
+
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  // State to track if biometrics are enabled in the app
+  const [isBiometricEnabled, setIsBiometricEnabled] = useState(false);
+  // State to control the simulated setup modal
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  // State to track the simulated "scanning" progress (0 to 5 taps)
+  const [touchCount, setTouchCount] = useState(0);
+
+  // Function to generate a 16-character random string (The "Crystal")
+  const generateBiometricToken = () => {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    let result = "";
+    for (let i = 0; i < 16; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  };
+
+  // Logic to handle the toggle button click
+  const handleToggleBiometric =  async () => {
+    if (isBiometricEnabled) {
+ 
+           // 1. remove the biometric_token token from  device local storage
+          await AsyncStorage.removeItem("biometric_token");
+
+          // 2. Send the User id  to Laravel to remove biometric_token from database
+          await axios.post(`http://10.39.154.166:8000/api/auth/remove-biometric/${user?.id}`, {
+            user_id: user?.id,
+          });
+
+          // If already enabled, just turn it off
+          setIsBiometricEnabled(false);
+
+          Alert.alert("Authentication Disabled", "fingerprint has been disabled.");
+    } else {
+      // If disabled, reset progress and show the "setup" modal
+      setTouchCount(0);
+      setIsModalVisible(true);
+    }
+  };
+
+  // Logic for the simulated fingerprint setup taps
+  const handleFingerprintTouch = async () => {
+    // Add haptic feedback for every tap
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    if (touchCount < 4) {
+      // Increment the progress count until the 5th tap
+      setTouchCount(prev => prev + 1);
+    } else {
+      setTouchCount(5); // Final stage reached
+      
+      // Trigger the ACTUAL OS Biometric prompt
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: "Verify your fingerprint to enable biometric security",
+      });
+
+      if (result.success) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+        try {
+          const newToken = generateBiometricToken();
+          
+          // 1. Save the token locally on the device
+          await AsyncStorage.setItem("biometric_token", newToken);
+
+          // 2. Send the token to Laravel to link it with this user
+          await axios.post(`http://10.39.154.166:8000/api/auth/update-biometric/${user?.id}`, {
+            user_id: user?.id,
+            biometric_token: newToken,
+          });
+
+          setIsBiometricEnabled(true);
+          setIsModalVisible(false);
+          Alert.alert("Authentication Successful", "Your fingerprint has been verified and enabled.");
+        } catch (error) {
+          console.error("Failed to sync biometric token", error);
+          Alert.alert("Error", "Could not link biometrics to your account. Please try again.");
+        }
+      } else {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        Alert.alert("Verification Failed", "Fingerprint not recognized by the system sensor.");
+        setTouchCount(0); // Reset UI progress on failure
+      }
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -25,6 +121,8 @@ const PrivacySecurity = () => {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
+
+        {/* arrow that direct user back to home page */}
         <View style={styles.header}>
           <TouchableOpacity
             onPress={() => router.back()}
@@ -44,6 +142,7 @@ const PrivacySecurity = () => {
               elsewhere.
             </Text>
 
+            {/* Current Password */}
             <View style={styles.inputSection}>
               <Text style={styles.label}>Current Password</Text>
               <View style={styles.inputWrapper}>
@@ -58,6 +157,7 @@ const PrivacySecurity = () => {
               </View>
             </View>
 
+            {/* New Password */}
             <View style={styles.inputSection}>
               <Text style={styles.label}>New Password</Text>
               <View style={styles.inputWrapper}>
@@ -72,6 +172,7 @@ const PrivacySecurity = () => {
               </View>
             </View>
 
+            {/* Confirm New Password */}
             <View style={styles.inputSection}>
               <Text style={styles.label}>Confirm New Password</Text>
               <View style={styles.inputWrapper}>
@@ -85,7 +186,8 @@ const PrivacySecurity = () => {
                 />
               </View>
             </View>
-
+      
+            {/* password button */}
             <TouchableOpacity
               style={styles.updateButton}
               onPress={() => {
@@ -95,11 +197,14 @@ const PrivacySecurity = () => {
             >
               <Text style={styles.updateButtonText}>Update Password</Text>
             </TouchableOpacity>
+
           </View>
 
+           {/*Section For Security Features */}
           <View style={[styles.section, { marginTop: 20 }]}>
             <Text style={styles.sectionTitle}>Security Features</Text>
 
+             {/* Two-Factor Authentication */}
             <TouchableOpacity style={styles.securityOption}>
               <View style={styles.optionInfo}>
                 <Text style={styles.optionTitle}>
@@ -112,18 +217,70 @@ const PrivacySecurity = () => {
               <MaterialIcons name="chevron-right" size={24} color="#CBD5E1" />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.securityOption}>
+            {/* Interactive Biometric Authentication Toggle */}
+            <TouchableOpacity 
+              style={styles.securityOption}
+              onPress={handleToggleBiometric}
+            >
               <View style={styles.optionInfo}>
                 <Text style={styles.optionTitle}>Biometric Authentication</Text>
                 <Text style={styles.optionSubtitle}>
                   Use FaceID or Fingerprint
                 </Text>
               </View>
-              <MaterialIcons name="toggle-on" size={32} color="#10B981" />
+              <MaterialIcons 
+                name={isBiometricEnabled ? "toggle-on" : "toggle-off"} 
+                size={32} 
+                color={isBiometricEnabled ? "#10B981" : "#CBD5E1"} 
+              />
             </TouchableOpacity>
+
+            
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Custom Bottom Modal for Fingerprint Setup Simulation */}
+      <Modal
+        visible={isModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setIsModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>Enable Fingerprint</Text>
+            <Text style={styles.modalSubtitle}>
+              {touchCount === 5 
+                ? "Verifying with system sensor..." 
+                : `Scanning lines... (${touchCount}/5 completed)`}
+            </Text>
+
+            <TouchableOpacity 
+              activeOpacity={0.8}
+              onPress={handleFingerprintTouch}
+              style={[styles.fingerprintTouchArea, touchCount > 0 && { borderColor: '#10B981' }]}
+            >
+              <View style={styles.fingerprintIconWrapper}>
+                {/* Base background icon (Grey) */}
+                <MaterialIcons name="fingerprint" size={120} color="#E2E8F0" />
+                
+                {/* The Green "Scan" overlay that materializes line-by-line via opacity */}
+                <View style={[styles.fingerprintScanOverlay, { opacity: touchCount * 0.2 }]}>
+                  <View style={{ position: "absolute" }}>
+                    <MaterialIcons name="fingerprint" size={120} color="#10B981" />
+                  </View>
+                </View>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => setIsModalVisible(false)} style={styles.cancelModalBtn}>
+              <Text style={styles.cancelModalText}>Cancel Setup</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -189,4 +346,50 @@ const styles = StyleSheet.create({
   optionInfo: { flex: 1 },
   optionTitle: { fontSize: 16, fontWeight: "600", color: "#334155" },
   optionSubtitle: { fontSize: 13, color: "#64748B", marginTop: 2 },
+  // New Modal Styles for Fingerprint Setup
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContainer: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    padding: 24,
+    alignItems: "center",
+    paddingBottom: 40,
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: "#E2E8F0",
+    borderRadius: 2,
+    marginBottom: 20,
+  },
+  modalTitle: { fontSize: 20, fontWeight: "bold", color: "#1E293B", marginBottom: 10 },
+  modalSubtitle: { fontSize: 14, color: "#64748B", textAlign: "center", marginBottom: 30 },
+  fingerprintTouchArea: {
+    width: 160,
+    height: 160,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+    borderRadius: 80,
+    borderWidth: 2,
+    borderColor: "transparent",
+    marginBottom: 30,
+  },
+  fingerprintIconWrapper: { 
+    position: "relative",
+    justifyContent: 'center',
+    alignItems: 'center' 
+  },
+  fingerprintScanOverlay: {
+    position: "absolute",
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cancelModalBtn: { marginTop: 10 },
+  cancelModalText: { color: "#EF4444", fontWeight: "600" },
 });

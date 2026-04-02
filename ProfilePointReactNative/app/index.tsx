@@ -51,7 +51,7 @@ const handleSubmit = async () => {
    try {
 
       // Send POST request to Laravel API for authentication
-     const response = await axios.post("http://10.39.154.166:8000/api/login", {
+     const response = await axios.post("http://10.39.154.166:8000/api/auth/login", {
        email: email.trim(),
        password: password.trim(),
      });
