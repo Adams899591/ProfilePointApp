@@ -15,5 +15,6 @@ Route::prefix("auth")->group(function(){
   Route::post('/login', [LoginController::class, 'authenticateLogin']);
   Route::post('/update-biometric/{userId}', [BiometricSetUPController::class, 'updateBiometricSetUp']);
   Route::post('/remove-biometric/{userId}', [BiometricSetUPController::class, 'removeBiometricSetUp']);
+  Route::post('/verify-biometric/{biometric_token}', [BiometricSetUPController::class, 'verifyBiometricSetUp']);
 
 });

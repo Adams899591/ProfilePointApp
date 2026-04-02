@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class BiometricSetUPController extends Controller
 {
@@ -37,5 +38,17 @@ class BiometricSetUPController extends Controller
         // remove the biometric token from the user's record
         $user->biometric_token = null;
         $user->save();
+        return response()->json(['status' => 'success', 'message' => 'Biometric removed.'], 200);
+    }
+
+    public function verifyBiometricSetUp(Request $request, $biometric_token){
+        // Use first() to get a single User object instead of a Collection
+        $user = User::where('biometric_token', $biometric_token)->first();
+
+        if (!$user) {
+            return response()->json(['status' => 'error', 'message' => 'Invalid biometric session.'], 404);
+        }    
+        
+        return response()->json(['status' => 'success', 'user' => $user], 200);
     }
 }

@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { UserContext } from "../(tabs)/UserContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 
 const HomeScreen = () => {
@@ -171,7 +172,19 @@ const HomeScreen = () => {
         <View style={styles.footer}>
           <TouchableOpacity
             style={styles.logoutButton}
-            onPress={() => router.replace("/")}
+            onPress={ 
+              // () =>
+              async () => {
+              try {
+                // Clear storage and global state to prevent stale data
+                await AsyncStorage.removeItem("user");
+                context?.setUser(null);
+                router.replace("/")
+              } catch (e) {
+                console.error("Logout error:", e);
+              }
+            }
+          }
           >
             <Text style={styles.logoutText}>Logout Account</Text>
           </TouchableOpacity>

@@ -7,7 +7,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useContext, useState } from "react";
 import {
   Alert,
-  ActivityIndicator,
   Button,
   KeyboardAvoidingView,
   Platform,
@@ -16,6 +15,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { UserContext } from "./(tabs)/UserContext";
@@ -27,8 +27,8 @@ const LoginScreen = () => {
   // State variables for form inputs and error messages
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
-    // State variables for error messages
+  
+  // State variables for error messages
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
 
@@ -38,28 +38,26 @@ const LoginScreen = () => {
   );
 
 
-
   const router = useRouter();
 
 
-
   // handle Submit with validation error handling
-const handleSubmit = async () => {
+  const handleSubmit = async () => {
+    setIsLoading(true); // set loading state to true when starting the login process
 
-   setIsLoading(true); // set loading state to true when starting the login process
-
-   try {
-
+    try {
+      // Clear previous errors
+      setEmailError("");
+      setPasswordError("");
+      
       // Send POST request to Laravel API for authentication
-     const response = await axios.post("http://10.39.154.166:8000/api/auth/login", {
-       email: email.trim(),
-       password: password.trim(),
-     });
+      const response = await axios.post("http://10.39.154.166:8000/api/auth/login", {
+        email: email.trim(),
+        password: password.trim(),
+      });
 
-        const data = response.data; // assuming the API returns a JSON object with a 'status' field
- 
-        if (data.status === "success") {
-
+      const data = response.data; // assuming the API returns a JSON object with a 'status' field
+      if (data.status === "success") {
           // Save the user data to AsyncStorage for persistence across app restarts
           await AsyncStorage.setItem("user", JSON.stringify(data.user));
 
@@ -67,20 +65,16 @@ const handleSubmit = async () => {
           context?.setUser(data.user);
           
           // Successfully logged in
-          router.replace("/home");
-        } 
-
-   } catch (error: any) { // handle errors from the API or network issues
-         const data = error.response?.data; // Safely extract response data if it exists
-      
+        router.replace("/home");
+      }
+    } catch (error: any) { // handle errors from the API or network issues
+      const data = error.response?.data; // Safely extract response data if it exists
+        
       // validation error from Laravel
-      if(data?.errors){ // check if there are validation errors in the response
-
-        setEmailError(data.errors.email?. [0] || "");
-        setPasswordError(data.errors.password?. [0] || "");
-
+      if (data?.errors) { // check if there are validation errors in the response
+        setEmailError(data.errors.email?.[0] || "");
+        setPasswordError(data.errors.password?.[0] || "");
       } else {
-
         // other errors (e.g. connection issues)
         const message = data?.message || "Connection failed. Please check if the server is running.";
         Alert.alert("Login Failed", message);
@@ -95,46 +89,106 @@ const handleSubmit = async () => {
 
   // handle Biometric Auth 
   const handleBiometricAuth = async () => {
-    const compatible = await LocalAuthentication.hasHardwareAsync();
-    if (!compatible) {
-      Alert.alert(
-        "Unsupported",
-        "This device does not support biometric login.",
-      );
-      return;
-    }
+    setIsLoading(true); // Start loading for biometric process
 
-    const enrolled = await LocalAuthentication.isEnrolledAsync();
-    if (!enrolled) {
-      Alert.alert(
-        "Not Set Up",
-        "Please set up biometrics in your phone settings.",
-      );
-      return;
-    }
+    try {
+      // 1. Fetch the absolute latest user data from AsyncStorage
+      const storedUserString = await AsyncStorage.getItem("user");
+      
+      if (!storedUserString) {
+        Alert.alert(
+          "Biometric Login",
+          "No account detected. Please log in with your email and password first.",
+        );
+        return;
+      }
 
-    const result = await LocalAuthentication.authenticateAsync({
-      promptMessage: "Sign in with Fingerprint",
-      fallbackLabel: "Use Password",
-    });
+      const storedUser = JSON.parse(storedUserString);
+      console.log("Current Stored User:", storedUser); // Testing: Check if biometric_token is present
 
-    if (result.success) {
-      // Provide physical success feedback
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // 2. Check if the biometric token is available
+      // If this is null, it means biometrics haven't been enabled for this device yet
+      if (!storedUser.biometric_token) {
+        Alert.alert(
+          "Enable Biometrics",
+          "Please log in with your password first to enable fingerprint authentication.",
+        );
+        return;
+      }
 
-      setBiometricStatus("success");
+      
 
-      // NOTE: In a real app, you'd fetch the stored user here
-      // context?.setUser(storedUser); 
+      // 3. Check for biometric hardware compatibility
+      const compatible = await LocalAuthentication.hasHardwareAsync();
+      if (!compatible) {
+        Alert.alert(
+          "Unsupported",
+          "This device does not support biometric login.",
+        );
+        return;
+      }
 
-      setTimeout(() => {
+      // 4. Check if biometrics are enrolled
+      const enrolled = await LocalAuthentication.isEnrolledAsync();
+      if (!enrolled) {
+        Alert.alert(
+          "Not Set Up",
+          "Please set up biometrics in your phone settings.",
+        );
+        return;
+      }
+
+      // 5. Authenticate with biometrics
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: "Sign in with Fingerprint",
+        fallbackLabel: "Use Password",
+      });
+
+      if (result.success) {
+        // Biometric authentication successful, now verify the stored token with the backend
+        try {
+          // Send the specific biometric_token found in storage to your Laravel API
+          const verifyResponse = await axios.post(`http://10.39.154.166:8000/api/auth/verify-biometric/${storedUser.biometric_token}`, {
+            biometric_token: storedUser.biometric_token,
+            email: storedUser.email,
+          });
+
+          if (verifyResponse.data.status === "success") {
+            // Token is valid, update context (if necessary) and navigate
+            // It's good practice to re-save the user data, in case the backend refreshed the token or user details
+            await AsyncStorage.setItem("user", JSON.stringify(verifyResponse.data.user));
+            context?.setUser(verifyResponse.data.user);
+
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            setBiometricStatus("success");
+            setTimeout(() => {
+              setBiometricStatus("idle");
+              router.replace("/home");
+            }, 1500);
+          } else {
+            // Backend indicates token is invalid or expired
+            Alert.alert("Biometric Login Failed", verifyResponse.data.message || "Your biometric session has expired. Please log in with your credentials.");
+            setBiometricStatus("idle");
+          }
+        } catch (apiError: any) {
+          console.error("Token verification error:", apiError);
+          const message = apiError.response?.data?.message || "Could not verify biometric token. Please log in with your credentials.";
+          Alert.alert("Biometric Login Failed", message);
+          setBiometricStatus("idle");
+        }
+      } else {
+        // Biometric authentication failed or user cancelled
+        Alert.alert("Biometric Authentication", "Biometric authentication failed or cancelled.");
         setBiometricStatus("idle");
-        router.replace("/home");
-      }, 1500);
+      }
+    } catch (error) {
+      console.error("Biometric authentication error:", error);
+      Alert.alert("Biometric Error", "An unexpected error occurred during biometric authentication.");
+      setBiometricStatus("idle");
+    } finally {
+      setIsLoading(false); // End loading for biometric process
     }
   };
-
-
 
   return (
     <SafeAreaView style={styles.container}>
@@ -169,7 +223,7 @@ const handleSubmit = async () => {
               />
 
               {/* emailError */}
-              {emailError ? (
+              {emailError ? ( // Corrected syntax for optional chaining
                   <Text style={{ color: "red", marginTop: 4 }}>{emailError}</Text>
                 ) : null}
 
@@ -187,7 +241,7 @@ const handleSubmit = async () => {
               />
 
               {/* passwordError */}
-              {passwordError ? (
+              {passwordError ? ( // Corrected syntax for optional chaining
                 <Text style={{ color: "red", marginTop: 4 }}>{passwordError}</Text>
               ) : null}
             </View>
@@ -196,13 +250,12 @@ const handleSubmit = async () => {
 
               {/* Login button */}
               <TouchableOpacity
-              
                 style={[styles.loginButton, isLoading && { opacity: 0.7 }]}
                 activeOpacity={0.7}
                 onPress={handleSubmit}
-                disabled={isLoading}
+                disabled={isLoading} // Disable login button during any loading
               >
-                {isLoading ? (
+                {isLoading && biometricStatus === "idle" ? ( // Only show spinner if login is loading, not biometric success animation
                   <ActivityIndicator color="#fff" />
                 ) : (
                   <Text style={styles.loginButtonText}>Login</Text>
@@ -215,15 +268,21 @@ const handleSubmit = async () => {
                   styles.biometricButton,
                   biometricStatus === "success" &&
                     styles.biometricButtonSuccess,
+                  isLoading && { opacity: 0.7 } // Disable biometric button during any loading
                 ]}
                 activeOpacity={0.7}
                 onPress={handleBiometricAuth}
+                disabled={isLoading} // Disable biometric button during any loading
               >
-                <MaterialIcons
-                  name={biometricStatus === "success" ? "check" : "fingerprint"}
-                  size={32}
-                  color={biometricStatus === "success" ? "#fff" : "#007AFF"}
-                />
+                {isLoading && biometricStatus !== "success" ? ( // Show spinner if biometric is loading and not yet success
+                  <ActivityIndicator color="#007AFF" /> // Or a different color for biometric spinner
+                ) : (
+                  <MaterialIcons
+                    name={biometricStatus === "success" ? "check" : "fingerprint"}
+                    size={32}
+                    color={biometricStatus === "success" ? "#fff" : "#007AFF"}
+                  />
+                )}
               </TouchableOpacity>
 
             </View>
@@ -240,13 +299,13 @@ const handleSubmit = async () => {
               style={styles.googleButton}
               activeOpacity={0.8}
               onPress={() => console.log("Google Login Pressed")}
+              disabled={isLoading} // Disable Google button during any loading
             >
               <View style={styles.googleIconWrapper}>
                 <MaterialIcons name="mail" size={20} color="#EA4335" />
               </View>
               <Text style={styles.googleButtonText}>Continue with Google</Text>
             </TouchableOpacity>
-
               {/* direct user to sign up page */}
             <View style={styles.footer}>
               <Text style={styles.footerText}>Don't have an account? </Text>
