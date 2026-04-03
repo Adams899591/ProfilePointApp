@@ -1,5 +1,6 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 import axios from "axios";
 import * as Haptics from "expo-haptics";
 import * as LocalAuthentication from "expo-local-authentication";
@@ -21,6 +22,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { UserContext } from "../(tabs)/UserContext";
 
 const PrivacySecurity = () => {
+
   const router = useRouter();
   const context = useContext(UserContext);
   const user = context?.user;
@@ -30,11 +32,16 @@ const PrivacySecurity = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   // State to track if biometrics are enabled in the app
-  const [isBiometricEnabled, setIsBiometricEnabled] = useState(false);
+  const [isBiometricEnabled, setIsBiometricEnabled] = useState(user?.biometric_token ? true : false);
+
+
   // State to control the simulated setup modal
   const [isModalVisible, setIsModalVisible] = useState(false);
   // State to track the simulated "scanning" progress (0 to 5 taps)
   const [touchCount, setTouchCount] = useState(0);
+
+  console.log(JSON.stringify(user, null, 2));
+  
 
   // Function to generate a 16-character random string (The "Crystal")
   const generateBiometricToken = () => {
@@ -89,8 +96,10 @@ const PrivacySecurity = () => {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
         try {
-          const newToken = generateBiometricToken();
-          
+          const newToken = generateBiometricToken(); 
+
+           await SecureStore.setItemAsync("biometric_token", newToken);
+
           // 1. Save the token locally on the device
           await AsyncStorage.setItem("biometric_token", newToken);
 
@@ -99,6 +108,8 @@ const PrivacySecurity = () => {
             user_id: user?.id,
             biometric_token: newToken,
           });
+
+         
 
           setIsBiometricEnabled(true);
           setIsModalVisible(false);
@@ -227,9 +238,9 @@ const PrivacySecurity = () => {
                 <Text style={styles.optionSubtitle}>
                   Use FaceID or Fingerprint
                 </Text>
-              </View>
-              <MaterialIcons 
-                name={isBiometricEnabled ? "toggle-on" : "toggle-off"} 
+              </View> 
+              <MaterialIcons  
+                name={isBiometricEnabled  ? "toggle-on" : "toggle-off"} 
                 size={32} 
                 color={isBiometricEnabled ? "#10B981" : "#CBD5E1"} 
               />

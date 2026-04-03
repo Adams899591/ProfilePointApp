@@ -1,5 +1,6 @@
 import axios from "axios";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import * as SecureStore from "expo-secure-store";
 import * as Haptics from "expo-haptics";
 import * as LocalAuthentication from "expo-local-authentication";
 import { useRouter } from "expo-router";
@@ -54,10 +55,16 @@ const LoginScreen = () => {
       const response = await axios.post("http://10.39.154.166:8000/api/auth/login", {
         email: email.trim(),
         password: password.trim(),
-      });
+      }); // cite: 1
 
-      const data = response.data; // assuming the API returns a JSON object with a 'status' field
+      const data = response.data;
       if (data.status === "success") {
+          // Store the token in SecureStore (it survives logouts)
+          // if (data.user.biometric_token) {
+          //   await SecureStore.setItemAsync("biometric_token", data.user.biometric_token);
+          //   delete data.user.biometric_token;
+          // }
+
           // Save the user data to AsyncStorage for persistence across app restarts
           await AsyncStorage.setItem("user", JSON.stringify(data.user));
 
@@ -92,31 +99,16 @@ const LoginScreen = () => {
     setIsLoading(true); // Start loading for biometric process
 
     try {
-      // 1. Fetch the absolute latest user data from AsyncStorage
-      const storedUserString = await AsyncStorage.getItem("user");
-      
-      if (!storedUserString) {
+      // 1. Fetch the biometric token from SecureStore
+      const biometricToken = await SecureStore.getItemAsync("biometric_token");
+
+      if (!biometricToken) {
         Alert.alert(
           "Biometric Login",
-          "No account detected. Please log in with your email and password first.",
+          "No biometric token found. Please log in with your email and password first to enable it.",
         );
         return;
       }
-
-      const storedUser = JSON.parse(storedUserString);
-      console.log("Current Stored User:", storedUser); // Testing: Check if biometric_token is present
-
-      // 2. Check if the biometric token is available
-      // If this is null, it means biometrics haven't been enabled for this device yet
-      if (!storedUser.biometric_token) {
-        Alert.alert(
-          "Enable Biometrics",
-          "Please log in with your password first to enable fingerprint authentication.",
-        );
-        return;
-      }
-
-      
 
       // 3. Check for biometric hardware compatibility
       const compatible = await LocalAuthentication.hasHardwareAsync();
@@ -147,10 +139,9 @@ const LoginScreen = () => {
       if (result.success) {
         // Biometric authentication successful, now verify the stored token with the backend
         try {
-          // Send the specific biometric_token found in storage to your Laravel API
-          const verifyResponse = await axios.post(`http://10.39.154.166:8000/api/auth/verify-biometric/${storedUser.biometric_token}`, {
-            biometric_token: storedUser.biometric_token,
-            email: storedUser.email,
+          // Send only the token. Laravel will find the user based on this unique token.
+          const verifyResponse = await axios.post(`http://10.39.154.166:8000/api/auth/verify-biometric/${biometricToken}`, {
+            biometric_token: biometricToken,
           });
 
           if (verifyResponse.data.status === "success") {

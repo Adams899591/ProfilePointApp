@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\LoginController; 
 
 // php artisan serve --host=10.39.154.166 --port=8000        used to start the server with the specified IP and port
 //php artisan route:list --path=api         used to list all the routes in the application, filtering by those that start with "api"
@@ -70,6 +70,19 @@ use App\Http\Controllers\Auth\LoginController;
 |    Purpose: Iconography. Provides the MaterialIcons used for input 
 |    fields, navigation tabs, and action buttons.
 |
+| #10 react-native-keychain
+|    Installation: npx expo install react-native-keychain
+|    Purpose: Secure Hardware Storage. It stores sensitive biometric 
+|    tokens in the device's secure enclave (Keychain/Keystore). This 
+|    ensures the fingerprint token persists even after a user logs out 
+|     and AsyncStorage is cleared.
+
+| #11 expo-secure-store
+|    Installation: npx expo install expo-secure-store
+|    Purpose: Secure Storage. It stores sensitive biometric 
+|    tokens securely on the device. This ensures the fingerprint 
+|    token persists even after a user logs out and AsyncStorage 
+|    is cleared, and it works perfectly within Expo Go.
 */
 
 Route::get('/', function () {
