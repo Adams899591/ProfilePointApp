@@ -2,30 +2,68 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 // import React, { useState } from "react";
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import {
+  Alert,
   Image,
   Modal,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View, 
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { UserContext } from "../(tabs)/UserContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
 
 
 const HomeScreen = () => {
   const router = useRouter();
   const [isAnalyticsVisible, setIsAnalyticsVisible] = useState(false);
   const context = useContext(UserContext);
+  const [taskCounts, setTaskCounts] = useState({ low: 0, medium: 0, high: 0 });
 
-  // Safely extract user. If the app reloads, user will be null
-  // until the login process is completed again.
+  // Safely extract user.
   const user = context?.user;
-  console.log(JSON.stringify(user, null, 2));
+
+  //  Use Effect to fetch all task by login user
+  useEffect(() => {
+    // Only fetch if we have a valid user ID
+    if (!user?.id) return;
+    
+   const  SendRequest = async () => {
+
+       try {
+                //  send user id to laravel to get all task related to the user and store it in the global state
+               const response =  await axios.post(`http://10.39.154.166:8000/api/task/fetchUserTask/${user?.id}`, {
+                    user_id: user?.id,
+                  });
+
+                  const data = response.data;
+                  
+                  if (data.status === "success") { 
+                    // Update state with actual counts from backend
+                    setTaskCounts({
+                      low: data.low,
+                      medium: data.medium,
+                      high: data.high,
+                    });
+                    
+                  }   
+       } catch (error) {
+          Alert.alert(`Unable to retrive task from api`, `${error}`);
+          
+       }
+   }
+
+   SendRequest();
+    // return () => {
+    //   second
+    // }
+  }, [])
+  
   
   return (
     <SafeAreaView style={styles.container}>
@@ -217,20 +255,20 @@ const HomeScreen = () => {
               {[
                 {
                   label: "High Priority",
-                  count: 8,
-                  progress: "40%",
+                  count: taskCounts.high,
+                  progress: `${(taskCounts.high / (taskCounts.low + taskCounts.medium + taskCounts.high || 1)) * 100}%`,
                   color: "#ef4444",
                 },
                 {
                   label: "Medium Priority",
-                  count: 12,
-                  progress: "60%",
+                  count: taskCounts.medium,
+                  progress: `${(taskCounts.medium / (taskCounts.low + taskCounts.medium + taskCounts.high || 1)) * 100}%`,
                   color: "#f59e0b",
                 },
                 {
                   label: "Low Priority",
-                  count: 5,
-                  progress: "25%",
+                  count: taskCounts.low,
+                  progress: `${(taskCounts.low / (taskCounts.low + taskCounts.medium + taskCounts.high || 1)) * 100}%`,
                   color: "#10b981",
                 },
               ].map((item, index) => (
