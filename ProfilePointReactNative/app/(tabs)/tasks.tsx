@@ -2,8 +2,10 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import React, { useCallback, useState } from "react";
+import {API_URL} from "../server/config";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import {
+  Alert,
   Modal,
   RefreshControl,
   ScrollView,
@@ -16,46 +18,37 @@ import {
 } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
+import axios from "axios";
+import { UserContext } from "./UserContext";
+
+interface Task {
+  id: number;
+  title: string;
+  category: string;
+  completed: boolean;
+  priority: string;
+}
+
 
 const TasksScreen = () => {
-  // Sample data for the UI
-  const [tasks, setTasks] = useState([
-    {
-      id: 1,
-      title: "Design Landing Page",
-      category: "UI Design",
-      completed: false,
-      priority: "High",
-    },
-    {
-      id: 2,
-      title: "Fix Login Bug",
-      category: "Development",
-      completed: true,
-      priority: "Medium",
-    },
-    {
-      id: 3,
-      title: "Client Meeting",
-      category: "Management",
-      completed: false,
-      priority: "High",
-    },
-    {
-      id: 4,
-      title: "Update Documentation",
-      category: "DevOps",
-      completed: false,
-      priority: "Low",
-    },
-  ]);
+  
+  // Sample data for the UI 
+  const [tasks, setTasks] = useState<Task[]>([]);
 
   const router = useRouter();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskCategory, setNewTaskCategory] = useState("");
+  const [editTaskTitle, setEditTaskTitle] = useState("");
+  const [editTaskCategory, setEditTaskCategory] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [progressCount, setProgressCount] = useState<number>(0);
+
+  const context = useContext(UserContext);
+      // Safely extract user.
+  const user = context?.user;
+
 
   // handles OnRefresh
   const onRefresh = useCallback(() => {
@@ -67,32 +60,123 @@ const TasksScreen = () => {
     }, 2000);
   }, []);
 
-  // handles Add Task
-  const handleAddTask = () => {
-    if (newTaskTitle.trim() === "") return;
 
-    const newTask = {
-      id: tasks.length + 1,
-      title: newTaskTitle,
-      category: newTaskCategory || "General",
-      completed: false,
-      priority: "Medium",
-    };
+ 
 
-    // Trigger haptic on adding a task
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    setTasks([...tasks, newTask]);
-    setNewTaskTitle("");
-    setNewTaskCategory("");
-    setIsModalVisible(false);
-  };
+  // handle Add Task
+  const handleAddTask = async () => {
+    if (newTaskTitle.trim() === "") {
+      Alert.alert("Error", "Task title is required.");
+      return;
+    }
 
-  //  handles Delete Task
-  const handleDeleteTask = (id: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    setTasks(tasks.filter((task) => task.id !== id));
-  };
+    try { 
+          const response = await axios.post(`${API_URL}/task/addtask`, {
+                            // Remove manual id; let the backend handle auto-increment
+                            title: newTaskTitle,
+                            category: newTaskCategory || "General",
+                            completed: false,
+                            priority: "Medium",
+                            user_id: user?.id,
+
+                        });
+
+          const data = response.data;
+
+          if (data.status === "success") {
+            
+            // Trigger haptic on adding a task
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+            setTasks([...tasks, data.task]);
+            setNewTaskTitle("");
+            setNewTaskCategory("");
+            setIsModalVisible(false);
+          }
+      
+    } catch (error) {
+
+      // console.error("Add Task Error:", error);
+      if (axios.isAxiosError(error)) {
+        // This helps you see the specific error returned by Laravel in your console
+        console.log("Server Response:", error.response?.data);
+        Alert.alert("Server Error", error.response?.data?.message || "Failed to add task");
+      } else {
+        Alert.alert("Error", "An unexpected error occurred.");
+      }
+    }
+  }
+
+    // handle Edit Task
+  const handleEditTask = async () => {
+    
+    if (editTaskTitle.trim() === "") {
+      Alert.alert("Error", "Task title is required.");
+      return;
+    }
+
+    try { 
+          const response = await axios.post(`${API_URL}/task/editTask`, {
+                            // Remove manual id; let the backend handle auto-increment
+                            title: editTaskTitle,
+                            category: newTaskCategory || "General",
+                            completed: false,
+                            priority: "High",
+                            user_id: user?.id,
+
+                        });
+
+          const data = response.data;
+
+          if (data.status === "success") {
+            
+            // Trigger haptic on adding a task
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+            setTasks([...tasks, data.task]);
+            setEditTaskTitle("");
+            setEditTaskCategory("");
+            setIsModalVisible(false);
+          }
+      
+    } catch (error) {
+
+      // console.error("Add Task Error:", error);
+      if (axios.isAxiosError(error)) {
+        // This helps you see the specific error returned by Laravel in your console
+        console.log("Server Response:", error.response?.data);
+        Alert.alert("Server Error", error.response?.data?.message || "Failed to add task");
+      } else {
+        Alert.alert("Error", "An unexpected error occurred.");
+      }
+    }
+  }
+
+
+  const handleDeleteTask = async (id: number) => {
+
+        try {
+              // send responce to laravel
+              const response = await axios.delete(`${API_URL}/task/deleteTask/${id}`);
+          
+              const data = response.data; 
+  
+              if (data.status === "success") { 
+
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+                setTasks(tasks.filter((task) => task.id !== id));
+                Alert.alert("Alert",`${data.message}`);
+                
+              }
+
+        } catch (error) {
+            // console.log(error);
+            // Alert.alert("Alert", "Task not found");
+          
+        }
+    }
+
 
   // handle  toggle Task Completion 
   const toggleTaskCompletion = (id: number) => {
@@ -117,6 +201,46 @@ const TasksScreen = () => {
       </TouchableOpacity>
     );
   };
+
+
+
+  // fetch all task by the login user
+   useEffect(() => { 
+     // 1. Guard against undefined user ID to avoid 404 on ".../undefined"
+     if (!user?.id) return;
+         
+       async function fetchTasks() {
+         try {
+                   // 2. Send response to laravel 
+                   const response = await axios.post(`${API_URL}/task/fetchUserTask/${user?.id}`, {
+                    user_id: user?.id,
+                   });
+
+                  const data = response.data; // get the respose and assigned it to a value data
+                  
+                  // console.log(JSON.stringify(progressCount, null, 2));
+                  
+                  if (data.status === "success") {
+
+                    setTasks(data.user.tasks); // Update this based on your API response structure
+
+                    // calculate the passentage count using the data gotton from response
+                    const progressCount =  ((data.completed  / data.totalTaskCount) * 100).toFixed();
+                    setProgressCount(Number(progressCount));
+                  }
+           
+         } catch (error) {
+           console.error("Error fetching tasks:", error);
+         }
+        }
+        
+        fetchTasks();
+   }, [user?.id, refreshing]) // 3. Re-run when user ID becomes available
+
+ 
+
+ 
+
 
   return (
     <SafeAreaView style={styles.container}>
@@ -166,10 +290,10 @@ const TasksScreen = () => {
           <View style={styles.progressCard}>
             <View style={styles.progressInfo}>
               <Text style={styles.progressLabel}>Overall Progress</Text>
-              <Text style={styles.progressValue}>75%</Text>
+              <Text style={styles.progressValue}>{progressCount}%</Text>
             </View>
             <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { width: "75%" }]} />
+              <View style={[styles.progressBarFill, { width: `${progressCount}%` }]} />
             </View>
           </View>
         </View>
@@ -215,7 +339,7 @@ const TasksScreen = () => {
                 </View>
                 <View style={styles.taskActions}>
 
-                  {/* setIsEditModalVisible */}
+                   {/* setIsEditModalVisible */}
                   <TouchableOpacity
                     style={styles.taskEditButton}
                     onPress={() => setIsEditModalVisible(true)}
@@ -244,7 +368,7 @@ const TasksScreen = () => {
                     </Text>
                   </View>
                 </View>
-              </TouchableOpacity>
+              </TouchableOpacity> 
 
             </Swipeable>
           ))}
@@ -327,6 +451,8 @@ const TasksScreen = () => {
                 style={styles.modalInput}
                 placeholder="Update task title"
                 placeholderTextColor="#94A3B8"
+                value={editTaskTitle}
+                onChangeText={setEditTaskTitle}
               />
             </View>
 
@@ -336,6 +462,8 @@ const TasksScreen = () => {
                 style={styles.modalInput}
                 placeholder="Update category"
                 placeholderTextColor="#94A3B8"
+                value={editTaskCategory}
+                onChangeText={setEditTaskCategory}
               />
             </View>
 
@@ -348,8 +476,8 @@ const TasksScreen = () => {
               </TouchableOpacity>
 
               <TouchableOpacity
+                onPress={() => handleEditTask()}
                 style={[styles.modalButton, styles.saveButton]}
-                onPress={() => setIsEditModalVisible(false)}
               >
                 <Text style={styles.modalSaveText}>Update Task</Text>
               </TouchableOpacity>

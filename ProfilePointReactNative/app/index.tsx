@@ -4,6 +4,7 @@ import * as SecureStore from "expo-secure-store";
 import * as Haptics from "expo-haptics";
 import * as LocalAuthentication from "expo-local-authentication";
 import { useRouter } from "expo-router";
+import { API_URL } from "./server/config";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useContext, useState } from "react";
 import {
@@ -23,7 +24,7 @@ import { UserContext } from "./(tabs)/UserContext";
 
 const LoginScreen = () => {
   // Consume the global context
-  const context = useContext(UserContext);
+  const context = useContext(UserContext); 
  
   // State variables for form inputs and error messages
   const [email, setEmail] = useState("");
@@ -52,7 +53,7 @@ const LoginScreen = () => {
       setPasswordError("");
       
       // Send POST request to Laravel API for authentication
-      const response = await axios.post("http://10.39.154.166:8000/api/auth/login", {
+      const response = await axios.post(`${API_URL}/auth/login`, {
         email: email.trim(),
         password: password.trim(),
       }); // cite: 1
@@ -140,7 +141,7 @@ const LoginScreen = () => {
         // Biometric authentication successful, now verify the stored token with the backend
         try {
           // Send only the token. Laravel will find the user based on this unique token.
-          const verifyResponse = await axios.post(`http://10.39.154.166:8000/api/auth/verify-biometric/${biometricToken}`, {
+          const verifyResponse = await axios.post(`${API_URL}/auth/verify-biometric/${biometricToken}`, {
             biometric_token: biometricToken,
           });
 

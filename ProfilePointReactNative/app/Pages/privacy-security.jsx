@@ -6,6 +6,7 @@ import * as Haptics from "expo-haptics";
 import * as LocalAuthentication from "expo-local-authentication";
 import { useRouter } from "expo-router";
 import { useContext, useState } from "react";
+import { API_URL } from "../server/config";
 import {
     Alert,
     KeyboardAvoidingView,
@@ -61,7 +62,7 @@ const PrivacySecurity = () => {
           await AsyncStorage.removeItem("biometric_token");
 
           // 2. Send the User id  to Laravel to remove biometric_token from database
-          await axios.post(`http://10.39.154.166:8000/api/auth/remove-biometric/${user?.id}`, {
+          await axios.post(`${API_URL}/auth/remove-biometric/${user?.id}`, {
             user_id: user?.id,
           });
 
@@ -104,7 +105,7 @@ const PrivacySecurity = () => {
           await AsyncStorage.setItem("biometric_token", newToken);
 
           // 2. Send the token to Laravel to link it with this user
-          await axios.post(`http://10.39.154.166:8000/api/auth/update-biometric/${user?.id}`, {
+          await axios.post(`${API_URL}/api/auth/update-biometric/${user?.id}`, {
             user_id: user?.id,
             biometric_token: newToken,
           });

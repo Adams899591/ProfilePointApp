@@ -1,7 +1,7 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-// import React, { useState } from "react";
+import {API_URL} from "../server/config";
 import React, { useContext, useEffect, useState } from "react";
 import {
   Alert,
@@ -37,7 +37,7 @@ const HomeScreen = () => {
 
        try {
                 //  send user id to laravel to get all task related to the user and store it in the global state
-               const response =  await axios.post(`http://10.39.154.166:8000/api/task/fetchUserTask/${user?.id}`, {
+               const response =  await axios.post(`${API_URL}/task/fetchUserTask/${user?.id}`, {
                     user_id: user?.id,
                   });
 
@@ -59,10 +59,7 @@ const HomeScreen = () => {
    }
 
    SendRequest();
-    // return () => {
-    //   second
-    // }
-  }, [])
+  }, [user?.id]) // Re-run when user ID becomes available
   
   
   return (
